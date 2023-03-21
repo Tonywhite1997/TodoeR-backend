@@ -49,7 +49,7 @@ exports.signUp = catchAsync(async (req, res, next) => {
   if (process.env.NODE_ENV === "development") {
     url = `http://localhost:3000/Home`;
   } else if (process.env.NODE_ENV === "production") {
-    url = `https://todoerapp.app/Home`;
+    url = `https://todoerapp.netlify.app/Home`;
   }
 
   await new Email(user, url).sendWelcome();
@@ -188,7 +188,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   if (process.env.NODE_ENV === "development") {
     resetUrl = `http://localhost:3000/reset-password?resetToken=${resetToken}`;
   } else if (process.env.NODE_ENV === "production") {
-    resetUrl = `https://todoerapp.app/reset-password?resetToken=${resetToken}`;
+    resetUrl = `https://todoerapp.netlify.app/reset-password?resetToken=${resetToken}`;
   }
 
   await new Email(user, resetUrl).forgotPassword();
@@ -228,7 +228,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   if (process.env.NODE_ENV === "development") {
     url = `http://localhost:3000/Home`;
   } else if (process.env.NODE_ENV === "production") {
-    url = `https://todoerapp.app/Home`;
+    url = `https://todoerapp.netlify.app/Home`;
   }
 
   await new Email(user, url).sendResetSucess();

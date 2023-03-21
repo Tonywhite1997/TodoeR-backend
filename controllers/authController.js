@@ -1,11 +1,10 @@
 const { promisify } = require("util");
 const jwt = require("jsonwebtoken");
-const appError = require("../utils/appError");
+const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
 const User = require("../models/user");
 const Email = require("../utils/email");
 const crypto = require("crypto");
-const AppError = require("../utils/appError");
 
 const getJWTToken = (userId) => {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
@@ -45,9 +44,13 @@ exports.signUp = catchAsync(async (req, res, next) => {
   });
   user.password = undefined;
 
-  // const url = `${req.protocol}://${req.get("host")}/login`;
-  // console.log(url);
-  const url = `http://localhost:3000`;
+  let url;
+
+  if (process.env.NODE_ENV === "development") {
+    url = `http://localhost:3000/Home`;
+  } else if (process.env.NODE_ENV === "production") {
+    url = `https://todoerapp.app/Home`;
+  }
 
   await new Email(user, url).sendWelcome();
 
@@ -72,7 +75,7 @@ exports.login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return next(new appError("email or password field can not be empty", 400));
+    return next(new AppError("email or password field can not be empty", 400));
   }
 
   if (
@@ -81,7 +84,7 @@ exports.login = catchAsync(async (req, res, next) => {
     locks[email].unlockedAt > Date.now()
   ) {
     return next(
-      new appError(
+      new AppError(
         "Account locked due to too many login attempts. Try again later",
         429
       )
@@ -100,7 +103,7 @@ exports.login = catchAsync(async (req, res, next) => {
       locks[email].isLocked = true;
       locks[email].unlockedAt = Date.now() + LOCK_WINDOW * 60 * 1000;
     }
-    return next(new appError("Incorrect email or password, try again", 404));
+    return next(new AppError("Incorrect email or password, try again", 404));
   }
 
   delete locks[email];
@@ -118,18 +121,18 @@ exports.protect = catchAsync(async (req, res, next) => {
     token = req.cookies.jwtToken;
   }
   if (!token) {
-    return next(new appError("Please login to continue", 404));
+    return next(new AppError("Please login to continue", 404));
   }
   const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
   const freshUser = await User.findById(decoded.userId);
   if (!freshUser) {
     return next(
-      new appError("The user belonging to this token does not exist", 401)
+      new AppError("The user belonging to this token does not exist", 401)
     );
   }
   if (freshUser.changedPasswordAfter(decoded.iat)) {
     return next(
-      new appError(
+      new AppError(
         "You recently changed your password, login again to continue",
         404
       )
@@ -144,7 +147,7 @@ exports.restrictTo = (...roles) => {
     const { role } = req.user;
     if (!roles.includes(role)) {
       return next(
-        new appError("Unauthorized! can not perform this request", 401)
+        new AppError("Unauthorized! can not perform this request", 401)
       );
     }
     next();
@@ -155,11 +158,11 @@ exports.checkIfActive = catchAsync(async (req, res, next) => {
   const { id } = req.user;
   const user = await User.findById(id);
   if (!user) {
-    return next(new appError("User does not exist", 404));
+    return next(new AppError("User does not exist", 404));
   }
   if (!user.isActive) {
     return next(
-      new appError(
+      new AppError(
         "account deactivated, please activate /restore to continue",
         401
       )
@@ -170,22 +173,23 @@ exports.checkIfActive = catchAsync(async (req, res, next) => {
 
 exports.forgotPassword = catchAsync(async (req, res, next) => {
   const { email } = req.body;
-  console.log(email);
   if (!email) {
-    return next(new appError("Please enter your email", 403));
+    return next(new AppError("Please enter your email", 403));
   }
   const user = await User.findOne({ email: email });
   if (!user) {
-    return next(new appError("This user does not exist", 404));
+    return next(new AppError("This user does not exist", 404));
   }
   const resetToken = user.createPasswordResetToken();
   await user.save({ validateBeforeSave: false });
 
-  // const resetUrl = `${req.protocol}//${req.get(
-  //   "host"
-  // )}/api/v1/users/resetPassword/${resetToken}`;
+  let resetUrl;
 
-  const resetUrl = `http://localhost:3000/reset-password?resetToken=${resetToken}`;
+  if (process.env.NODE_ENV === "development") {
+    resetUrl = `http://localhost:3000/reset-password?resetToken=${resetToken}`;
+  } else if (process.env.NODE_ENV === "production") {
+    resetUrl = `https://todoerapp.app/reset-password?resetToken=${resetToken}`;
+  }
 
   await new Email(user, resetUrl).forgotPassword();
 
@@ -199,7 +203,7 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
   const { resetToken } = req.query;
 
   if (!resetToken) {
-    return next(new appError("Invalid token or expired token", 403));
+    return next(new AppError("Invalid token or expired token", 403));
   }
 
   const hashedResetToken = crypto
@@ -209,15 +213,25 @@ exports.resetPassword = catchAsync(async (req, res, next) => {
 
   const user = await User.findOne({ passwordResetToken: hashedResetToken });
   if (!user) {
-    return next(new appError("Invalid token or expired token", 400));
+    return next(new AppError("Invalid token or expired token", 400));
   }
 
   const tokenExpiringDate = new Date(user.resetTokenExpiresIn);
   const currentDate = new Date();
 
   if (tokenExpiringDate.getTime() < currentDate.getTime()) {
-    return next(new appError("Invalid token or expired token", 400));
+    return next(new AppError("Invalid token or expired token", 400));
   }
+
+  let url;
+
+  if (process.env.NODE_ENV === "development") {
+    url = `http://localhost:3000/Home`;
+  } else if (process.env.NODE_ENV === "production") {
+    url = `https://todoerapp.app/Home`;
+  }
+
+  await new Email(user, url).sendResetSucess();
 
   user.password = req.body.password;
   user.confirmPassword = req.body.confirmPassword;
@@ -238,12 +252,12 @@ exports.updatePassword = catchAsync(async (req, res, next) => {
   const { id } = req.user;
   const user = await User.findById(id).select("+password");
   if (!user) {
-    return next(new appError("User does not exist", 404));
+    return next(new AppError("User does not exist", 404));
   }
 
   if (!(await user.correctPassword(currentPassword, user.password))) {
     console.log(false);
-    return next(new appError("incorrect password", 400));
+    return next(new AppError("incorrect password", 400));
   }
   user.password = req.body.password;
   user.confirmPassword = req.body.confirmPassword;

@@ -1,0 +1,18 @@
+extends baseEmail 
+
+block content 
+
+    p #{firstName}
+    p You have successfully reset your password.
+    p Continue from where you stopped. Creating your new task is a click away!
+    table.btn.btn-primary(role='presentation', border='0', cellpadding='0', cellspacing='0')
+        tbody
+            tr
+                td(align='left')
+                    table(role='presentation', border='0', cellpadding='0', cellspacing='0')
+                        tbody
+                            tr
+                                td
+                                    a(href=`${url}`, target='_blank') continue
+    p If you need any help, please don't hesitate to contact me!
+    p - Tony

@@ -25,7 +25,7 @@ const limit = rateLimit({
 app.use(
   cors({
     credentials: true,
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000", "https://todoerapp.onrender.com/"],
   })
 );
 app.use(express.json());

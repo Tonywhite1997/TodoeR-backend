@@ -157,6 +157,8 @@ exports.restrictTo = (...roles) => {
 exports.checkIfActive = catchAsync(async (req, res, next) => {
   const { id } = req.user;
   const user = await User.findById(id);
+  const { jwtToken } = req.cookie;
+  console.log(jwtToken);
   if (!user) {
     return next(new AppError("User does not exist", 404));
   }
